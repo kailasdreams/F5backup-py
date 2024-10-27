@@ -1,0 +1,62 @@
+#---------------------------------------------------------------------------------------------------------------------#
+
+Write-Host " Program Code Written by Kailas Pathade"
+
+#---------------------------------------------------------------------------------------------------------------------#
+
+# Bypass SSL certificate validation (Warning: This ignores SSL errors, use with caution)
+Add-Type @"
+    using System.Net;
+    using System.Security.Cryptography.X509Certificates;
+    public class TrustAllCertsPolicy : ICertificatePolicy {
+        public bool CheckValidationResult(
+            ServicePoint srvPoint, X509Certificate certificate,
+            WebRequest request, int certificateProblem) {
+            return true;
+        }
+    }
+"@
+[System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+
+# Variables
+$F5Hostname = "https://10.1.1.10"  # Replace with your F5 hostname or IP
+$F5Username = "admin"                # Replace with your F5 username
+$F5Password = "kailas@123"                # Replace with your F5 password
+$BackupDirectory = "C:\F5Backups"            # Directory where the backup will be saved
+$BackupFileName = "10.1.1.10_" + (Get-Date -Format "yyyyMMdd_HHmmss") + ".ucs"    #Replace your IP address 
+$BackupFilePath = Join-Path $BackupDirectory $BackupFileName
+
+# Ensure the backup directory exists
+if (-not (Test-Path $BackupDirectory)) {
+    New-Item -Path $BackupDirectory -ItemType Directory
+}
+
+# Encode credentials for authentication
+$base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($F5Username):$($F5Password)"))
+
+# Backup LTM UCS
+$backupUri = "$F5Hostname/mgmt/tm/sys/ucs"
+$backupBody = @{
+    command = "save"
+    name    = $BackupFileName
+}
+
+# Send POST request to create the backup
+$response = Invoke-RestMethod -Uri $backupUri -Method Post -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)} -Body ($backupBody | ConvertTo-Json) -ContentType "application/json"
+
+if ($response) {
+    Write-Host "Backup created successfully on the F5 device: $BackupFileName"
+
+    # Download the UCS backup file
+    $downloadUri = "$F5Hostname/mgmt/shared/file-transfer/ucs-downloads/$BackupFileName"
+    $webClient = New-Object System.Net.WebClient
+    $webClient.Headers.Add("Authorization", "Basic " + $base64AuthInfo)
+    $webClient.DownloadFile($downloadUri, $BackupFilePath)
+
+    Write-Host "Backup downloaded successfully: $BackupFilePath"
+} else {
+    Write-Host "Failed to create backup on the F5 device."
+}
+
+#---------------------------------------------------------------------------------------------------------------------#
+
