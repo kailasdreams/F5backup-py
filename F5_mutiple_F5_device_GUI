@@ -15,7 +15,7 @@ from datetime import datetime
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Excel file path
-excel_file = 'C:/Users/OM-SAI/Desktop/New folder/f5_device_credentials.xlsx'  ### Define the File hostame path 5_device_credentials.xlsx
+excel_file = 'C:\\Users\\d\\Desktop\\Automations\\f5_device_credentials.xlsx'  ### Define the File hostame path 5_device_credentials.xlsx
 
 # Read Excel sheet into a DataFrame
 df = pd.read_excel(excel_file)
